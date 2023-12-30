@@ -128,18 +128,32 @@ assign_cizero_build_id_v1() {
 }
 
 docker_local_toolbox_build_v1() {
-  docker context create builder || log "INFO - docker context already exists"
-  docker buildx create builder \
-    --use \
-    --driver-opt network=host \
-    --buildkitd-flags '--debug --allow-insecure-entitlement network.host'
-  docker buildx build \
+  #docker context create builder || log "INFO - docker context already exists"
+
+  #docker buildx create \
+  #  --name builder \
+  #  --driver-opt network=host \
+  #  --buildkitd-flags '--debug --allow-insecure-entitlement network.host' \
+  #    || log "INFO - builder already exists"
+
+  #docker buildx use builder
+
+  #docker buildx build \
+  docker build \
     --tag cizero:local-toolbox \
     --file ci/Dockerfile \
-    --load \
+    --build-arg USER=$(whoami) \
+    --build-arg USER_UID=$(id -u ${USER}) \
+    --build-arg USER_GID=$(id -g ${USER}) \
+    --build-arg DOCKER_HUB_USER=${DOCKER_HUB_USER} \
+    --secret id=docker_hub_password,env=DOCKER_HUB_PASSWORD \
+    --build-arg REGISTRY_MENDER_IO_USER=${REGISTRY_MENDER_IO_USER} \
+    --secret id=registry_mender_io_password,env=REGISTRY_MENDER_IO_PASSWORD \
+    --build-arg GITLAB_USER=${GITLAB_USER} \
+    --secret id=gitlab_pat,env=GITLAB_PAT \
     ci/
-  docker buildx stop
-  docker buildx rm
+  #docker buildx stop
+  #docker buildx rm
 }
 
 docker_local_toolbox_run_v1() {
@@ -149,6 +163,13 @@ docker_local_toolbox_run_v1() {
     --name cizero-${CIZERO_BUILD_ID} \
     --rm \
     cizero:local-toolbox
+}
+
+docker_local_toolbox_cleanup_v1() {
+  docker stop \
+      cizero-${CIZERO_BUILD_ID} \
+    && docker rm \
+      cizero-${CIZERO_BUILD_ID} || log "INFO - container already removed"
 }
 
 docker_dind_run_v1() {
@@ -166,4 +187,17 @@ docker_exec_v1() {
     --tty \
     cizero-${CIZERO_BUILD_ID} \
     $@
+}
+
+docker_exec_ci_aware_v1() {
+  if [ -z ${CI_PIPELINE_ID+x} ]; then
+    docker exec \
+      --interactive \
+      --tty \
+      cizero-${CIZERO_BUILD_ID} \
+      $@
+  else
+    log "INFO - running in pipeline - skipping command $@"
+  fi
+
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
 
 CURR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 [ -d "$CURR_DIR" ] || { echo "FATAL: no current dir (maybe running in zsh?)";  exit 1; }
@@ -9,12 +9,21 @@ source .build_info
 
 section "workspace preparation"
 
-#docker_local_toolbox_build_v1
-#docker_local_toolbox_run_v1
-docker_dind_run_v1
+docker_local_toolbox_build_v1
+docker_local_toolbox_run_v1
+#docker_dind_run_v1
 
-sleep 20
-docker_exec_v1 "cat /etc/os-release"
+sleep 5 # wait for docker to came up
+docker_exec_v1 "docker version"
+
+#section "setup requirements"
+
+#    - for repo in `integration/extra/release_tool.py -l docker`; do
+#        integration/extra/release_tool.py --set-version-of $repo --version pr;
+#      done
+
+section "cleanup"
+docker_local_toolbox_cleanup_v1
 
 #test:backend-integration:open_source:
 #  tags:

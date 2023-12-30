@@ -1,5 +1,61 @@
-FROM docker:24.0.6-dind-rootless
+FROM docker:24.0.6-dind
+#ARG USER ${USER}
+#ARG USER_UID ${USER_UID}
+#ARG USER_GID ${USER_GID}
+ARG DOCKER_HUB_USER
+ARG DOCKER_HUB_PASSWORD
+ARG REGISTRY_MENDER_IO_USER
+ARG REGISTRY_MENDER_IO_PASSWORD
+ARG GITLAB_USER
+ARG GITLAB_PAT
 
-#RUN apk --update add bash git py-pip gcc make python2-dev
+RUN apk --update add \
+      bash \
+      git \
+      py-pip \
+      gcc \
+      make \
+      libc-dev \
+      libffi-dev \
+      openssl-dev \
+      python3 \
+      curl \
+      jq \
+      sysstat \
+      xz
 
-ENTRYPOINT ["docker-entrypoint.sh"]
+#RUN addgroup -S --gid $USER_GID $USER \
+#    && adduser -S --uid $USER_UID -G $USER --shell /bin/bash $USER
+
+#USER ${USER}
+
+RUN wget https://raw.githubusercontent.com/mendersoftware/integration/master/extra/requirements.txt \
+      && pip3 install -r requirements.txt
+
+RUN --mount=type=secret,id=docker_hub_password,target=/run/secrets/docker_hub_password \
+      --mount=type=secret,id=registry_mender_io_password,target=/run/secrets/registry_mender_io_password \
+      --mount=type=secret,id=gitlab_pat,target=/run/secrets/gitlab_pat \
+      cat /run/secrets/docker_hub_password \
+        | docker login \
+          --username ${DOCKER_HUB_USER:-menderbuildsystem} \
+          --password-stdin \
+      && cat /run/secrets/registry_mender_io_password \
+        | docker login \
+          --username ${REGISTRY_MENDER_IO_USER:-ntadm_menderci} \
+          --password-stdin \
+          registry.mender.io \
+      && cat /run/secrets/gitlab_pat \
+        | docker login \
+          --username ${GITLAB_USER} \
+          --password-stdin \
+          registry.gitlab.com
+
+RUN git clone --depth 1 https://github.com/mendersoftware/mender-qa.git \
+      && cd mender-qa \
+      && git clone --depth 1 https://github.com/mendersoftware/integration.git
+
+RUN for repo in `integration/extra/release_tool.py -l docker`; do \
+        integration/extra/release_tool.py --set-version-of $repo --version pr; \
+      done
+
+ENTRYPOINT ["dockerd-entrypoint.sh"]
