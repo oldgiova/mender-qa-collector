@@ -141,7 +141,7 @@ docker_local_toolbox_build_v1() {
   #docker buildx build \
   docker build \
     --tag cizero:local-toolbox \
-    --file ci/Dockerfile \
+    --file $1 \
     --build-arg USER=$(whoami) \
     --build-arg USER_UID=$(id -u ${USER}) \
     --build-arg USER_GID=$(id -g ${USER}) \
@@ -199,5 +199,11 @@ docker_exec_ci_aware_v1() {
   else
     log "INFO - running in pipeline - skipping command $@"
   fi
-
 }
+
+docker_cp_v1() {
+  docker cp \
+    $1 \
+    cizero-${CIZERO_BUILD_ID}:$2
+}
+

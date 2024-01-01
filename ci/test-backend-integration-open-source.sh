@@ -9,18 +9,31 @@ source .build_info
 
 section "workspace preparation"
 
-docker_local_toolbox_build_v1
+docker_local_toolbox_build_v1 ci/Dockerfile-test-backend-integration-open-source
 docker_local_toolbox_run_v1
 #docker_dind_run_v1
 
 sleep 5 # wait for docker to came up
 docker_exec_v1 "docker version"
 
-#section "setup requirements"
+section "set specific tags"
+docker_exec_v1 "/opt/loop_set_version_and_repo.sh"
+
+section "prepare mender-artifact"
+
+docker_exec_v1 "mkdir -p integration/backend-tests/downloaded-tools"
+docker_exec_v1 "echo 'mv stage-artifacts/mender-artifact-linux integration/backend-tests/downloaded-tools/mender-artifact'"
+docker_exec_v1 "echo 'cp integration/backend-tests/downloaded-tools/mender-artifact integration/backend-tests/mender-artifact'"
+
+
+section "setup requirements"
+docker_exec_v1 "/opt/run_test_suite.sh"
 
 #    - for repo in `integration/extra/release_tool.py -l docker`; do
 #        integration/extra/release_tool.py --set-version-of $repo --version pr;
 #      done
+
+sleep 600
 
 section "cleanup"
 docker_local_toolbox_cleanup_v1

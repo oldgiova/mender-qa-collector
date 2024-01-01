@@ -29,6 +29,9 @@ RUN apk --update add \
 
 #USER ${USER}
 
+ADD loop_set_version_and_repo.sh /opt/loop_set_version_and_repo.sh
+ADD run_test_suite.sh /opt/run_test_suite.sh
+
 RUN wget https://raw.githubusercontent.com/mendersoftware/integration/master/extra/requirements.txt \
       && pip3 install -r requirements.txt
 
@@ -50,12 +53,12 @@ RUN --mount=type=secret,id=docker_hub_password,target=/run/secrets/docker_hub_pa
           --password-stdin \
           registry.gitlab.com
 
+# skip cache if the repos have been updated
+ADD "https://api.github.com/repos/mendersoftware/mender-qa/commits?per_page=1" latest_commit_mender_qa
+ADD "https://api.github.com/repos/mendersoftware/integration/commits?per_page=1" latest_commit_integration
+
 RUN git clone --depth 1 https://github.com/mendersoftware/mender-qa.git \
       && cd mender-qa \
       && git clone --depth 1 https://github.com/mendersoftware/integration.git
-
-RUN for repo in `integration/extra/release_tool.py -l docker`; do \
-        integration/extra/release_tool.py --set-version-of $repo --version pr; \
-      done
 
 ENTRYPOINT ["dockerd-entrypoint.sh"]
